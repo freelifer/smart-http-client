@@ -385,16 +385,16 @@ public class HttpClient {
             if (inputStream == null) {
                 return "";
             }
-            ByteArrayOutputStream byteArrayOutputStream = null;
+            ByteArrayOutputStream outputStream = null;
             try {
                 //创建字节数组输出流 ，用来输出读取到的内容
-                byteArrayOutputStream = toByteArrayOutputStream(inputStream);
+                outputStream = toByteArrayOutputStream(inputStream);
 
                 //返回字符串结果
-                return byteArrayOutputStream.toString("UTF-8");
+                return outputStream.toString("UTF-8");
             } finally {
                 // 关闭输入流和输出流
-                closeQuietly(byteArrayOutputStream);
+                closeQuietly(outputStream);
                 closeQuietly(inputStream);
             }
         }
@@ -403,16 +403,16 @@ public class HttpClient {
             if (inputStream == null) {
                 return new byte[0];
             }
-            ByteArrayOutputStream byteArrayOutputStream = null;
+            ByteArrayOutputStream outputStream = null;
             try {
                 //创建字节数组输出流 ，用来输出读取到的内容
-                byteArrayOutputStream = toByteArrayOutputStream(inputStream);
+                outputStream = toByteArrayOutputStream(inputStream);
 
                 //返回字符串结果
-                return byteArrayOutputStream.toByteArray();
+                return outputStream.toByteArray();
             } finally {
                 // 关闭输入流和输出流
-                closeQuietly(byteArrayOutputStream);
+                closeQuietly(outputStream);
                 closeQuietly(inputStream);
             }
         }

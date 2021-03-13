@@ -11,7 +11,7 @@ properties.load(project.rootProject.file('local.properties').newDataInputStream(
 publish {
     userOrg = "freelifer"
     groupId = group
-    artifactId = "mavenrepo-gradle-plugin"
+    artifactId = "http"
     publishVersion = VERSION_NAME
     desc = description
     website = POM_URL

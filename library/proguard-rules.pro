@@ -19,3 +19,9 @@
 # If you keep the line number information, uncomment this to
 # hide the original source file name.
 #-renamesourcefileattribute SourceFile
+
+-keep class freelifer.smart.http.HttpOrOkHttpClient {*;}
+-keep class freelifer.smart.http.HttpOrOkHttpClient$HttpRequest* {*;}
+-keep class freelifer.smart.http.HttpOrOkHttpClient$HttpJsonRequest* {*;}
+-keep class freelifer.smart.http.HttpOrOkHttpClient$HttpResponse* {*;}
+-keep interface freelifer.smart.http.HttpOrOkHttpClient$Method* {*;}
