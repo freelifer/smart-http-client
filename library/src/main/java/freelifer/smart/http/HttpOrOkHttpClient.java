@@ -1,6 +1,9 @@
 package freelifer.smart.http;
 
+import android.util.Log;
+
 import java.io.BufferedOutputStream;
+import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.Closeable;
 import java.io.FilterInputStream;
@@ -36,6 +39,7 @@ public class HttpOrOkHttpClient {
     private static final String HEADER_CONTENT_TYPE = "Content-Type";
     private static final String ENCODING_GZIP = "gzip";
     private IHttp http;
+    private Statistics statistics;
 
     public HttpOrOkHttpClient() {
         try {
@@ -46,11 +50,43 @@ public class HttpOrOkHttpClient {
         }
     }
 
+    public static HttpOrOkHttpClient of() {
+        return new HttpOrOkHttpClient();
+    }
+
+    public HttpOrOkHttpClient setStatistics(Statistics statistics) {
+        this.statistics = statistics;
+        return this;
+    }
+
     public HttpResponse execute(HttpRequest request) throws IOException {
-        return http.execute(request);
+        // start req
+        long time = System.currentTimeMillis();
+        HttpResponse response = null;
+        try {
+            response = http.execute(request);
+        } catch (Exception e) {
+            Log.e("HttpOrOkHttpClient", "HttpOrOkHttpClient.execite error", e);
+            String error = onlyEmpty(e.getLocalizedMessage());
+            response = new HttpResponse(-1, null, error.length(), new ByteArrayInputStream(error.getBytes()));
+        }
+
+        if (statistics != null) {
+            statistics.count(request.getUrl(), response.getStatusCode(), (System.currentTimeMillis() - time));
+        }
+
+        // end req
+        return response;
     }
 
     private interface IHttp {
+        /**
+         * http 请求执行
+         *
+         * @param request 请求包装对象
+         * @return 响应对象
+         * @throws IOException 异常
+         */
         HttpResponse execute(HttpRequest request) throws IOException;
     }
 
@@ -309,6 +345,18 @@ public class HttpOrOkHttpClient {
 
     private static final int HTTP_CONTINUE = 100;
 
+    private static String onlyEmpty(String src) {
+        return src == null ? "" : src;
+    }
+
+    /**
+     * 判断是否有响应体数据
+     * [100, 200) 204和304 没有响应体数据
+     *
+     * @param requestMethod 请求方法
+     * @param responseCode  响应码
+     * @return true 有响应体
+     */
     private static boolean hasResponseBody(int requestMethod, int responseCode) {
         return requestMethod != Method.HEAD
                 && !(HTTP_CONTINUE <= responseCode && responseCode < HttpURLConnection.HTTP_OK)
@@ -316,12 +364,6 @@ public class HttpOrOkHttpClient {
                 && responseCode != HttpURLConnection.HTTP_NOT_MODIFIED;
     }
 
-    /**
-     * Initializes an {@link InputStream} from the given {@link HttpURLConnection}.
-     *
-     * @param connection
-     * @return an HttpEntity populated with data from <code>connection</code>.
-     */
     private static InputStream inputStreamFromConnection(HttpURLConnection connection) {
         InputStream inputStream;
         try {
@@ -481,7 +523,7 @@ public class HttpOrOkHttpClient {
 
         @Override
         public void close() throws IOException {
-            inputStream.close();
+            closeQuietly(inputStream);
         }
 
         public HttpResponseBody(InputStream inputStream) {
@@ -567,5 +609,12 @@ public class HttpOrOkHttpClient {
         int OPTIONS = 5;
         int TRACE = 6;
         int PATCH = 7;
+    }
+
+    public interface Statistics {
+        /**
+         * 计数
+         */
+        void count(String uri, int code, long time);
     }
 }

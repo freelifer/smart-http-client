@@ -9,17 +9,20 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
-        Thread({
-            Log.i("testtest", "result")
+        Thread {
+            Log.i("xxxx", "http start")
             val req = HttpOrOkHttpClient.HttpRequest()
             req.url = "http://ip-api.com/json?lang=zh-CN"
 
-            val client = HttpOrOkHttpClient()
+            val client = HttpOrOkHttpClient.of()
+                .setStatistics { url, code, time ->
+                    Log.i("xxxx", "http statistics $url $code $time")
+                }
             val response = client.execute(req).runCatching {
-                Log.i("testtest", "result")
+                Log.i("xxxx", "http execute body")
                 body().string()
             }.toString()
-            Log.i("testtest", "result $response")
-        }).start()
+            Log.i("xxxx", "http result $response")
+        }.start()
     }
 }
