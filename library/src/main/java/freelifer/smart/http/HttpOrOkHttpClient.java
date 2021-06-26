@@ -10,6 +10,8 @@ import java.io.FilterInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.io.PrintWriter;
+import java.io.StringWriter;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.util.Collections;
@@ -30,6 +32,7 @@ import okhttp3.ResponseBody;
  * 使用系统默认HttpURLConnection或OkHttp
  *
  * @author freelifer on 2021/3/5.
+ * @version 1.1.0
  */
 public class HttpOrOkHttpClient {
     /**
@@ -54,6 +57,14 @@ public class HttpOrOkHttpClient {
         return new HttpOrOkHttpClient();
     }
 
+    public static HttpRequest ofHttpRequest() {
+        return new HttpRequest();
+    }
+
+    public static HttpJsonRequest ofHttpJsonRequest() {
+        return new HttpJsonRequest();
+    }
+
     public HttpOrOkHttpClient setStatistics(Statistics statistics) {
         this.statistics = statistics;
         return this;
@@ -67,7 +78,7 @@ public class HttpOrOkHttpClient {
             response = http.execute(request);
         } catch (Exception e) {
             Log.e("HttpOrOkHttpClient", "HttpOrOkHttpClient.execite error", e);
-            String error = onlyEmpty(e.getLocalizedMessage());
+            String error = getErrorInfoFromException(e);
             response = new HttpResponse(-1, null, error.length(), new ByteArrayInputStream(error.getBytes()));
         }
 
@@ -102,9 +113,13 @@ public class HttpOrOkHttpClient {
             Request.Builder builder = new Request.Builder();
             builder.url(request.getUrl());
             Map<String, String> headers = request.getHeader();
-            if (headers != null) {
+            if (headers != null && !headers.isEmpty()) {
                 for (String key : headers.keySet()) {
-                    builder.addHeader(key, headers.get(key));
+                    String value = headers.get(key);
+                    // fix: key、value 不能为null
+                    if (key != null && value != null) {
+                        builder.addHeader(key, value);
+                    }
                 }
             }
 
@@ -205,8 +220,11 @@ public class HttpOrOkHttpClient {
             try {
                 Map<String, String> headers = request.getHeader();
                 if (headers != null && !headers.isEmpty()) {
-                    for (String headerName : headers.keySet()) {
-                        conn.setRequestProperty(headerName, headers.get(headerName));
+                    for (String key : headers.keySet()) {
+                        String value = headers.get(key);
+                        if (key != null && value != null) {
+                            conn.setRequestProperty(key, value);
+                        }
                     }
                 }
 
@@ -345,8 +363,15 @@ public class HttpOrOkHttpClient {
 
     private static final int HTTP_CONTINUE = 100;
 
-    private static String onlyEmpty(String src) {
-        return src == null ? "" : src;
+    private static String getErrorInfoFromException(Exception e) {
+        try {
+            StringWriter sw = new StringWriter();
+            PrintWriter pw = new PrintWriter(sw);
+            e.printStackTrace(pw);
+            return "\r\n" + sw.toString() + "\r\n";
+        } catch (Exception e2) {
+            return "bad getErrorInfoFromException";
+        }
     }
 
     /**
@@ -393,24 +418,49 @@ public class HttpOrOkHttpClient {
         private byte[] body;
         private int timeoutMs = DEFAULT_TIMEOUT_MS;
 
-        public void setUrl(String url) {
+        public HttpRequest setUrl(String url) {
             this.url = url;
+            return this;
         }
 
-        public void setMethod(int method) {
+        public HttpRequest setMethod(int method) {
             this.method = method;
+            return this;
         }
 
-        public void setHeader(Map<String, String> header) {
+        public HttpRequest setHeader(Map<String, String> header) {
+            if (header == null) {
+                throw new NullPointerException("HttpRequest setHeader Not allowed Null.");
+            }
+            if (header.isEmpty()) {
+                // key 不为null 不为empty
+                // value 不为null
+                for (String key : header.keySet()) {
+                    if (key == null) {
+                        throw new NullPointerException("HttpRequest setHeader key Not allowed Null.");
+                    }
+                    if (key.isEmpty()) {
+                        throw new NullPointerException("HttpRequest setHeader key Not allowed Empty.");
+                    }
+                    String value = header.get(key);
+                    if (value == null) {
+                        throw new NullPointerException("HttpRequest setHeader value Not allowed Null.");
+                    }
+                }
+            }
+
             this.header = header;
+            return this;
         }
 
-        public void setBody(byte[] body) {
+        public HttpRequest setBody(byte[] body) {
             this.body = body;
+            return this;
         }
 
-        public void setTimeoutMs(int timeoutMs) {
+        public HttpRequest setTimeoutMs(int timeoutMs) {
             this.timeoutMs = timeoutMs;
+            return this;
         }
 
         public String getUrl() {
