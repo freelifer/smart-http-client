@@ -28,3 +28,8 @@
 -keep class freelifer.smart.http.HttpOrOkHttpClient$HttpResponse* {*;}
 -keep interface freelifer.smart.http.HttpOrOkHttpClient$Method* {*;}
 -keep interface freelifer.smart.http.HttpOrOkHttpClient$Statistics* {*;}
+
+-keep class freelifer.smart.http.Headers {
+    public *;
+}
+-keep interface freelifer.smart.http.Headers$Lazy { *; }
