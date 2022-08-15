@@ -1,5 +1,6 @@
 package freelifer.smart.http;
 
+import android.os.NetworkOnMainThreadException;
 import android.util.Log;
 
 import java.io.BufferedOutputStream;
@@ -14,6 +15,7 @@ import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -43,6 +45,7 @@ public class HttpOrOkHttpClient {
     private static final String ENCODING_GZIP = "gzip";
     private IHttp http;
     private Statistics statistics;
+    private List<Statistic> mStatistics;
 
     public HttpOrOkHttpClient() {
         try {
@@ -65,19 +68,33 @@ public class HttpOrOkHttpClient {
         return new HttpJsonRequest();
     }
 
+    @Deprecated
     public HttpOrOkHttpClient setStatistics(Statistics statistics) {
         this.statistics = statistics;
+        return this;
+    }
+
+    public HttpOrOkHttpClient addStatistic(Statistic statistic) {
+        if (this.mStatistics == null) {
+            this.mStatistics = new ArrayList<>();
+        }
+        this.mStatistics.add(statistic);
         return this;
     }
 
     public HttpResponse execute(HttpRequest request) throws IOException {
         // start req
         long time = System.currentTimeMillis();
-        HttpResponse response = null;
+        HttpResponse response;
+        String errorMsg = "";
         try {
             response = http.execute(request);
         } catch (Exception e) {
             Log.e("HttpOrOkHttpClient", "HttpOrOkHttpClient.execite error", e);
+            errorMsg = e.getLocalizedMessage();
+            if (e instanceof NetworkOnMainThreadException) {
+                throw e;
+            }
             String error = getErrorInfoFromException(e);
             response = new HttpResponse(-1, null, error.length(), new ByteArrayInputStream(error.getBytes()));
         }
@@ -85,9 +102,20 @@ public class HttpOrOkHttpClient {
         if (statistics != null) {
             statistics.count(request.getUrl(), response.getStatusCode(), (System.currentTimeMillis() - time));
         }
+        eachStatisticses(request.getUrl(), response.getStatusCode(), errorMsg, (System.currentTimeMillis() - time));
 
         // end req
         return response;
+    }
+
+    private void eachStatisticses(String uri, int code, String errorMsg, long time) {
+        if (this.mStatistics == null) {
+            return;
+        }
+        StatisticParam param = new StatisticParam(uri, code, errorMsg, time);
+        for (Statistic statistic : mStatistics) {
+            statistic.count(param);
+        }
     }
 
     private interface IHttp {
@@ -102,7 +130,7 @@ public class HttpOrOkHttpClient {
     }
 
     private static class OkHttpClientDelegate implements IHttp {
-        private OkHttpClient okHttpClient;
+        private final OkHttpClient okHttpClient;
 
         public OkHttpClientDelegate() {
             okHttpClient = new OkHttpClient();
@@ -533,21 +561,21 @@ public class HttpOrOkHttpClient {
         /**
          * Returns the HTTP status code of the response.
          */
-        public final int getStatusCode() {
+        public int getStatusCode() {
             return statusCode;
         }
 
         /**
          * Returns the response headers. Must not be mutated directly.
          */
-        public final Map<String, List<String>> getHeaders() {
+        public Map<String, List<String>> getHeaders() {
             return headers;
         }
 
         /**
          * Returns the length of the content. Only valid if {@link #getContent} is non-null.
          */
-        public final long getContentLength() {
+        public long getContentLength() {
             return contentLength;
         }
 
@@ -555,7 +583,7 @@ public class HttpOrOkHttpClient {
          * Returns an {@link InputStream} of the response content. May be null to indicate that the
          * response has no content.
          */
-        public final InputStream getContent() {
+        public InputStream getContent() {
             if (content != null) {
                 return content;
             } else {
@@ -563,13 +591,13 @@ public class HttpOrOkHttpClient {
             }
         }
 
-        public final HttpResponseBody body() {
+        public HttpResponseBody body() {
             return new HttpResponseBody(getContent());
         }
     }
 
     public static class HttpResponseBody implements Closeable {
-        private InputStream inputStream;
+        private final InputStream inputStream;
 
         @Override
         public void close() throws IOException {
@@ -666,5 +694,45 @@ public class HttpOrOkHttpClient {
          * 计数
          */
         void count(String uri, int code, long time);
+    }
+
+    public interface Statistic {
+
+        /**
+         * 统计
+         *
+         * @param param 参数
+         */
+        void count(StatisticParam param);
+    }
+
+    public static class StatisticParam {
+        public String url;
+        public int code;
+        public String error;
+        public long time;
+
+        public StatisticParam(String url, int code, String error, long time) {
+            this.url = url;
+            this.code = code;
+            this.error = error;
+            this.time = time;
+        }
+
+        public String getUrl() {
+            return url;
+        }
+
+        public int getCode() {
+            return code;
+        }
+
+        public String getError() {
+            return error;
+        }
+
+        public long getTime() {
+            return time;
+        }
     }
 }

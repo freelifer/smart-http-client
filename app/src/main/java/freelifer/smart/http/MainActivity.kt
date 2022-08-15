@@ -15,7 +15,7 @@ class MainActivity : AppCompatActivity() {
             req.url = "http://ip-api.com/json?lang=zh-CN"
 
             val client = HttpOrOkHttpClient.of()
-                .setStatistics { url, code, time ->
+                .addStatistic { url, code, time ->
                     Log.i("xxxx", "http statistics $url $code $time")
                 }
             val response = client.execute(req).runCatching {
